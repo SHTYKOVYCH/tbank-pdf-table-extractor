@@ -8,12 +8,16 @@ OUTPUT = "operations.xlsx"
 
 text = ""
 
+print("Программа начинает работу")
+
 with pdfplumber.open(PDF_FILE) as pdf:
     for page in pdf.pages:
         text += page.extract_text(x_tolerance=2, y_tolerance=2)
         text += "\n"
 
 lines = text.splitlines()
+
+print("Считал весь текст. всего строк:", len(lines))
 
 date_pattern = re.compile(r"^\d{2}\.\d{2}\.\d{4}")
 time_pattern = re.compile(r"^\d{2}:\d{2}")
@@ -66,11 +70,12 @@ for line in lines:
 if current:
     rows.append(current)
 
-
-
+print("считал все строки таблицы. всего строк: ", len(rows))
 
 df = pd.DataFrame(rows)
 
 df.to_excel(OUTPUT, index=False)
 
 print("Готово:", OUTPUT)
+
+input("Нажмите любую кнопку для выхода")
