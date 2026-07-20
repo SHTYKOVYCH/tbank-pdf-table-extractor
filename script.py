@@ -10,67 +10,27 @@ text = ""
 
 print("Программа начинает работу")
 
-with pdfplumber.open(PDF_FILE) as pdf:
-    for page in pdf.pages:
-        text += page.extract_text(x_tolerance=2, y_tolerance=2)
-        text += "\n"
-
-lines = text.splitlines()
-
-print("Считал весь текст. всего строк:", len(lines))
-
-date_pattern = re.compile(r"^\d{2}\.\d{2}\.\d{4}")
-time_pattern = re.compile(r"^\d{2}:\d{2}")
-
 rows = []
 
-current = None
-prev_was_footer = False
+with pdfplumber.open(PDF_FILE) as pdf:
+    for page in pdf.pages:
+        tables = page.extract_tables({
+            "vertical_strategy": "explicit",
+            "explicit_vertical_lines": [55, 130, 197, 385, 541, 634, 731, 785]
+        })
 
-for line in lines:
-    if date_pattern.match(line):
-        prev_was_footer = False
-        if current:
-            rows.append(current)
-
-        chunks = line[22:-5].split("₽")
-
-        current = {
-            "Дата операции": line[0:10],# + " " + additional_chunks[:5],
-            "Дата списания": line[11:21],# + " " + additional_chunks[6:12],
-            "Сумма в валюте операции": chunks[0],
-            "Сумма операции в валюте карты": chunks[1],
-            "Описание": chunks[2],# + " " + additional_chunks[12:],
-            "Карта": line[-5:]
-        }
+        for table in tables:
+            for row in table:
+                rows.append({
+                    "Дата операции": row[0],
+                    "Сумма": row[1],
+                    "Описание": row[2].replace('\n', ' '),
+                    "Банк, адрес операции": row[3].replace('\n', ' '),
+                    "Контрагент": row[4].replace('\n', ' '),
+                    "Номер карты отправителя/получателя": row[5].replace('\n', ' '),
+                    "Реквизиты операции": row[6].replace('\n', ' ', 2)
+                })
         
-        continue
-
-    if current == None:
-        continue
-
-    if time_pattern.match(line):
-        prev_was_footer = False
-        current["Дата операции"] += ' ' + line[:5]
-        current["Дата списания"] += ' ' + line[6:12]
-        current["Описание"] += ' ' + line[12:]
-
-        continue
-
-    if "АО «ТБанк»" in line:
-        prev_was_footer = True
-        continue
-
-    if prev_was_footer:
-        continue
-
-    if current:
-        current["Описание"] += ' ' + line
-
-if current:
-    rows.append(current)
-
-print("считал все строки таблицы. всего строк: ", len(rows))
 
 df = pd.DataFrame(rows)
 
